@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice-Over Content Studio</title>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            padding: 40px;
+            background: linear-gradient(135deg, #1e1e2f 0%, #2a2a4a 100%);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        .container {
+            max-width: 900px;
+            width: 100%;
+        }
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 40px;
+            background: linear-gradient(90deg, #00ddeb, #ff6f91);
+            -webkit-background-clip: text;
+            color: transparent;
+            text-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        .panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .panel:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+        }
+        h2 {
+            font-size: 1.5em;
+            margin: 0 0 15px;
+            color: #e0e0ff;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .text-box {
+            width: 100%;
+            min-height: 130px;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+            font-size: 1em;
+            resize: vertical;
+            outline: none;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.1);
+            transition: background 0.3s ease;
+        }
+        .text-box:focus {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        .result-area {
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            margin: 20px 0;
+            color: #d0d0ff;
+            font-size: 1em;
+            line-height: 1.5;
+        }
+        .button-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        button, select {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 30px;
+            background: linear-gradient(45deg, #00ddeb, #ff6f91);
+            color: #fff;
+            font-size: 1em;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        button:hover, select:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        button:disabled {
+            background: rgba(255, 255, 255, 0.2);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        select {
+            background: linear-gradient(45deg, #ff6f91, #00ddeb);
+            appearance: none;
+            padding-right: 35px;
+            background-image: url('data:image/svg+xml;utf8,<svg fill="white" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+        }
+        audio {
+            margin-top: 20px;
+            width: 100%;
+            filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.2));
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Voice-Over Content Studio</h1>
+
+        
+        <div class="panel">
+            <h2>Create AI-Powered Voice Content</h2>
+            <textarea class="text-box" id="prompt-box" placeholder="Enter a prompt (e.g., 'Write a poem about the sea')"></textarea>
+            <div class="button-group">
+                <button onclick="createAIResponse()">Generate Text</button>
+                <select id="ai-voice-option">
+                    <option value="female">Female Voice</option>
+                    <option value="male">Male Voice</option>
+                </select>
+                <button onclick="playGeneratedVoice()" id="play-ai" disabled>Listen</button>
+                <button onclick="saveGeneratedVoice()" id="save-ai" disabled>Save Audio</button>
+            </div>
+            <div id="ai-result" class="result-area"></div>
+            <audio id="ai-player" controls></audio>
+        </div>
+
+        
+        <div class="panel">
+            <h2>Convert Your Text to Voice</h2>
+            <textarea class="text-box" id="custom-text" placeholder="Write your own text for voice conversion"></textarea>
+            <div class="button-group">
+                <select id="custom-voice-option">
+                    <option value="female">Female Voice</option>
+                    <option value="male">Male Voice</option>
+                </select>
+                <button onclick="playCustomVoice()">Listen</button>
+                <button onclick="saveCustomVoice()">Save Audio</button>
+            </div>
+            <audio id="custom-player" controls></audio>
+        </div>
+    </div>
+
+    <script>
+        
+        const settings = {
+            key: "AIzaSyCwgYK7CSyh8l28KOhZ_H1h-S9TVUFbrtU",
+            aiModel: "gemini-1.5-pro-latest",
+            tokenLimit: 1000
+        };
+
+        
+        const voiceEngine = window.speechSynthesis;
+        let availableVoices = [];
+        let femaleVoice, maleVoice;
+
+        
+        function setupVoices() {
+            availableVoices = voiceEngine.getVoices();
+            femaleVoice = availableVoices.find(v => v.name.match(/Female|Samantha|Victoria|Zira|Karen/)) || availableVoices[0];
+            maleVoice = availableVoices.find(v => v.name.match(/Male|Alex|Daniel|David|Mark/)) || availableVoices[1] || availableVoices[0];
+            
+            
+            console.log("Available voices:", availableVoices);
+        }
+        
+        
+        if (voiceEngine.getVoices().length === 0) {
+            voiceEngine.onvoiceschanged = setupVoices;
+        } else {
+            setupVoices();
+        }
+
+        
+        async function createAIResponse() {
+            const userPrompt = document.getElementById('prompt-box').value.trim();
+            if (!userPrompt) return alert('Please provide a prompt');
+
+            try {
+                const apiResponse = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models/${settings.aiModel}:generateContent?key=${settings.key}`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+                            generationConfig: { maxOutputTokens: settings.tokenLimit }
+                        })
+                    }
+                );
+
+                if (!apiResponse.ok) throw new Error('Failed to fetch AI response');
+                const responseData = await apiResponse.json();
+                const generatedText = responseData.candidates[0].content.parts[0].text;
+
+                document.getElementById('ai-result').textContent = generatedText;
+                document.getElementById('play-ai').disabled = false;
+                document.getElementById('save-ai').disabled = false;
+
+            } catch (err) {
+                document.getElementById('ai-result').textContent = `Oops: ${err.message}`;
+            }
+        }
+
+        
+        function playGeneratedVoice() {
+            const content = document.getElementById('ai-result').textContent;
+            if (!content || content.startsWith('Oops')) return;
+
+            const selectedVoice = document.getElementById('ai-voice-option').value;
+            const speech = new SpeechSynthesisUtterance(content);
+            speech.voice = selectedVoice === 'female' ? femaleVoice : maleVoice;
+            
+            
+            voiceEngine.cancel();
+            
+            
+            voiceEngine.speak(speech);
+            
+            
+            document.getElementById('ai-player').src = '';
+        }
+
+        
+        function playCustomVoice() {
+            const userText = document.getElementById('custom-text').value.trim();
+            if (!userText) return alert('Please enter text to convert');
+
+            const voiceChoice = document.getElementById('custom-voice-option').value;
+            const speech = new SpeechSynthesisUtterance(userText);
+            speech.voice = voiceChoice === 'female' ? femaleVoice : maleVoice;
+            
+            
+            voiceEngine.cancel();
+            
+            
+            voiceEngine.speak(speech);
+            
+            
+            document.getElementById('custom-player').src = '';
+        }
+
+        
+        function saveGeneratedVoice() {
+            alert("Audio saving requires a server-side TTS service. Web Speech API doesn't support direct audio export.");
+        }
+
+        function saveCustomVoice() {
+            alert("Audio saving requires a server-side TTS service. Web Speech API doesn't support direct audio export.");
+        }
+    </script>
+</body>
+</html>
